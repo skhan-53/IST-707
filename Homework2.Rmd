@@ -1,0 +1,87 @@
+---
+title: "Homework1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+
+
+# Load Data
+```{r}
+schools<- read.csv("///Users/gozi/Downloads/data-storyteller.csv")
+str(schools)
+summary(schools)
+
+```
+
+
+#Data Exploration
+
+```{r include=FALSE}
+#rename columns 
+names(schools) <- c('School', 'Section', 'VeryAhead', 'Middling', 'Behind', 'MoreBehind','VeryBehind', 'Completed')
+schools
+
+
+#aggegrate by school
+resultsBySchool <- aggregate(schools[,3:8],by=list(schools$School),FUN=sum)
+resultsBySchool
+
+names(resultsBySchool)[1] <- 'School'
+
+resultsBySchool
+
+studentsPerSchool <- rowSums(resultsBySchool[,2:6])
+new_df <- data.frame(resultsBySchool,studentsPerSchool)
+new_df
+
+#Remove the veryahead column since it has no values 
+
+new_df <- new_df[,-2]
+
+names(new_df)[1] <- 'School'
+new_df
+
+#aggregate by column 
+total_results <- gather(new_df[,2:6]) %>% group_by(key) %>% summarise(count=sum(value))
+total_results 
+
+resultsBySection <- aggregate(schools[,3:8],by=list(schools$Section),FUN=sum)
+resultsBySection
+
+studentsPerSection <- rowSums(resultsBySection[,3:8])
+section_df <- data.frame(resultsBySection,studentsPerSection)
+section_df
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+#Barplots by results 
+
+barplot(resultsBySchool$Middling, main = "Middling", names.arg =resultsBySchool$School )
+
+barplot(resultsBySchool$Behind, main = "Behind", names.arg =resultsBySchool$School )
+
+barplot(resultsBySchool$MoreBehind, main = "MoreBehind", names.arg =resultsBySchool$School )
+
+barplot(resultsBySchool$VeryBehind, main = "VeryBehind", names.arg =resultsBySchool$School )
+
+barplot(resultsBySchool$Completed, main = "Completed", names.arg =resultsBySchool$School )
+
+```
+```{r}
+#school breakdown
+
+total_results
+barplot(total_results$count, names.arg = total_results$key, 
+    main="Student Progress Status")
+
+
+
+
+```

@@ -1,0 +1,99 @@
+---
+
+# I worked on this homework with Kevin Hager 
+library(rpart)
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+library(readr)
+library(caret)
+library(e1071)
+library(tree)
+
+
+#get and cleanse the data 
+getwd()
+FP<-read.csv("/Users/gozi/Downloads/fedPapers85.csv")
+# separate disputed cases from rest of fed papers will use for prediction
+DisputedFP<-subset(FP,author=="dispt")
+# removing filename column from data
+DisputedFP<-DisputedFP[,-2]
+view(DisputedFP)
+NOTDisputedFP<-subset(FP,author!="dispt")
+# removing filename column from data
+NOTDisputedFP<-NOTDisputedFP[,-2]
+view(NOTDisputedFP)
+
+
+
+# split remaining undisputed authors into training & testing subsets
+# splitting in 65% train and 35% test
+
+
+
+FPsplit<-createDataPartition(y=NOTDisputedFP$author,p=0.75,list = FALSE)
+FPtraining<-NOTDisputedFP[FPsplit,]
+
+
+
+FPtesting<-NOTDisputedFP[-FPsplit,]
+
+
+
+# putting ~. will include all columns for the decision tree
+DTModel1<-rpart(author~.,data=FPtraining,method="class",minbucket=2, minsplit=2,maxdepth = 5)
+DTModel1
+summary(DTModel1)
+fancyRpartPlot(DTModel1,caption = NULL)
+
+
+
+Mod1Results<-predict(DTModel1,FPtesting,type="class")
+Mod1Table<-table(FPtesting$author,Mod1Results)
+Mod1Accuracy<-confusionMatrix(Mod1Table)
+Mod1Accuracy
+
+
+
+DTModel2<-rpart(author~.,data=FPtraining,method="class", minbucket=3, minsplit=4,maxdepth = 5)
+DTModel2
+summary(DTModel2)
+fancyRpartPlot(DTModel2,caption = NULL)
+
+
+
+Mod2Results<-predict(DTModel2,FPtesting,type="class")
+Mod2Table<-table(FPtesting$author,Mod2Results)
+Mod2Accuracy<-confusionMatrix(Mod2Table)
+Mod2Accuracy
+
+
+
+
+DTModel3<-rpart(author~.,data=FPtraining,method="class", minbucket=8,minsplit=10,maxdepth = 5)
+DTModel3
+fancyRpartPlot(DTModel3,caption = NULL)
+
+
+
+Mod3Results<-predict(DTModel3,FPtesting,type="class")
+Mod3Table<-table(FPtesting$author,Mod3Results)
+Mod3Accuracy<-confusionMatrix(Mod3Table)
+Mod3Accuracy
+
+
+
+# DT Model 1 is most accurate at nearly 92% so we will use that with disputed authors
+DispPred<-predict(DTModel1,DisputedFP,type = "class")
+DispTable<-table(DisputedFP$author,DispPred)
+view(DispTable)
+
+
+
+DisputedPredictProb<-predict(DTModel1,newdata = DisputedFP,type = "prob")
+DisputedPredictProb
+
+
+
+DisputedPredictClass<-predict(DTModel1,newdata = DisputedFP,type = "class")
+DisputedPredictClass

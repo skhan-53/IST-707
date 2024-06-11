@@ -1,0 +1,162 @@
+---
+title: "Homework 4 Federalist Papers"
+author: "Khan"
+date: "5/1/2022"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The purpose of this homework is to use clustering analysis to determine if Hamilton or Madison wrote the disputed Federalist Paper. Kevin Hager and I worked collaboratively on this homework. The code is also referencing  from class material. 
+## Load R Packages
+
+Install required R packages:
+
+```{r}
+#install.packages('RWeka')
+#install.packages('tidyverse')  # data manipulation
+#install.packages('cluster')    # clustering algorithms
+#install.packages('factoextra') # clustering algorithms & visualization
+#install.packages('gridExtra')
+```
+
+```{r}
+require(RWeka)
+require(tidyverse)  # data manipulation
+require(cluster)    # clustering algorithms
+require(factoextra) # clustering algorithms & visualization
+require(gridExtra)  # subfigure layout package
+```
+
+## Data Preparation
+
+Setup the working environment and load the papers.csv file
+
+```{r}
+papers <- read.csv("/Users/gozi/Downloads/fedPapers85.csv") ### <-- specify correct data location
+str(papers)
+
+
+```
+
+To remove any missing value that might be present in the data, type this:
+
+```{r}
+papers <- na.omit(papers)
+```
+
+Remove the label information and replace the row names with abbreviated authors
+
+```{r}
+
+papers_unlabeled <- papers[,c(3:72)]
+
+authors <- rep(NA,85)
+for (a in 1:85){
+  authors[a] <- paste(substr(papers$author[a],1,2),a)
+}
+
+rownames(papers_unlabeled) <- authors
+head(papers_unlabeled)
+```
+
+Scaling the data 
+```{r}
+papers_unlabeled <- scale(papers_unlabeled)
+head(papers_unlabeled)
+
+typeof(papers_unlabeled)
+```
+
+```{r}
+distance <- get_dist(papers_unlabeled)
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+
+
+## KMeans Clustering 
+
+
+```{r}
+model_r = kmeans(papers_unlabeled, centers = 7, nstart = 25)
+model_r
+```
+
+print the centroids
+
+```{r}
+model_r$centers
+```
+
+get cluster assignment
+
+```{r}
+cluster_assignment <- data.frame(papers,model_r$cluster)
+#View(cluster_assignment)
+```
+
+
+View results using fviz_cluster.
+
+```{r}
+fviz_cluster(model_r, data = papers_unlabeled)
+```
+
+## Select the best K
+
+
+```{r}
+k3 <- kmeans(papers_unlabeled, centers = 3, nstart = 25)
+k4 <- kmeans(papers_unlabeled, centers = 4, nstart = 25)
+k5 <- kmeans(papers_unlabeled, centers = 5, nstart = 25)
+
+# plots to compare
+p1 <- fviz_cluster(k3, geom = "point",  data = papers_unlabeled) + ggtitle("k = 3")
+p2 <- fviz_cluster(k4, geom = "point",  data = papers_unlabeled) + ggtitle("k = 4")
+p3 <- fviz_cluster(k5, geom = "point",  data = papers_unlabeled) + ggtitle("k = 5")
+p4 <- fviz_cluster(model_r, geom = "point", data = papers_unlabeled) + ggtitle("k = 7")
+
+require(gridExtra)
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+```
+
+Based on these plots it is safe to resonable to assume the Maddison wrote the disputed papers. We will now use HAC to show if there is a difference
+
+```{r}
+d <- dist(papers_unlabeled, method = "euclidean")
+
+# Hierarchical clustering using Complete Linkage
+hc1 <- hclust(d, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(hc1, cex = 0.6, hang = -1)
+```
+```{r}
+# Dissimilarity matrix, remember hclust need a matrix input
+d <- dist(papers_unlabeled, method = "euclidean")
+
+# Ward's method
+hc5 <- hclust(d, method = "ward.D2" )
+
+# Cut tree into 4 groups
+cluster_label <- cutree(hc5, k = 3)
+
+# Number of members in each cluster
+table(cluster_label)
+```
+
+```{r}
+iris_clustered <- cbind(papers, cluster_label)
+
+```
+
+
+```{r}
+plot(hc5, cex = 0.6)
+rect.hclust(hc5, k = 3, border = 2:5)
+```
+Based on this dendrogram, the disputed papers fall into the cluster with Madison, so therefore it can be assumed Madison wrote the papers. 
